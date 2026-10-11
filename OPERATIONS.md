@@ -34,6 +34,12 @@ Commands:
 - `python3 config.py check` shows the profile state of every repo.
 - `python3 tools/check_project.py` lists paths in the project files that no longer exist on origin.
 
+## Videos in tickets (watch skill)
+Step 2 runs `python3 <watch skill>/scripts/watch.py <url> --engine <WATCH_ENGINE> --question ... --out-dir evidence/<id>/video` and reads the frames.
+`python3 config.py check` reports when the skill is missing or not set up; fix it with `/watch` once in an interactive Claude Code session.
+Headless runs cannot answer the skill's setup questions, so setup must be done beforehand. A private video (login needed) usually cannot be
+downloaded: step 2 then falls back to the browser and notes a BLOCKER.
+
 ## Stages
 queued -> replicating -> replicated -> classified -> fixing -> fixed-local -> verifying -> verified -> pr-draft -> done.
 

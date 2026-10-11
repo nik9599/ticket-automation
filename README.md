@@ -24,6 +24,13 @@ Nothing in this repository is about a particular project. The facts about each o
 - [Claude Code](https://claude.com/claude-code) CLI (`claude`) with the **ClickUp** and **Slack** connectors (a support-desk connector is optional)
 - GitHub CLI (`gh`), logged in, with push access to your repos
 - Chrome with the Claude extension, for the browser steps (replicate and verify)
+- The **`watch`** video skill, so step 2 can watch the videos attached to tickets (screen recordings, YouTube, files). In an interactive Claude Code session:
+  ```
+  /plugin marketplace add bradautomates/claude-video
+  /plugin install watch@claude-video
+  /watch
+  ```
+  Running `/watch` once finishes its setup (choose the `local` engine; it installs `ffmpeg` and `yt-dlp`). The automation finds the skill by itself.
 - Your repos cloned locally, each able to run its own dev server and tests
 
 **2. Fill in your settings**
@@ -44,6 +51,7 @@ cp settings.example.json settings.json
 | `REVIEWER_NAME`, `REVIEWER_SLACK_USER`, `REVIEWER_SLACK_CHANNEL` | Optional. Who gets a review DM when a repo's `review_files` change |
 | `NOTES_FOLDER` | Apple Notes folder for batch notes |
 | `SCAN_PERMISSION` | `ask` (default), `always` or `never`; see [Step 0](#step-0-project-profile-and-scan-permission) |
+| `WATCH_ENGINE` | `local` (default: frames + transcript on your machine) or `gemini` (uploads ticket videos to Google; only if they may leave your machine) |
 | `repos.<name>.path` | Absolute path of the repo checkout |
 | `repos.<name>.ticket_match` | Title prefixes / tags that map a ticket to this repo |
 | `repos.<name>.test_environment` | `url`, `host`, and `notes` (how to sign in, test accounts, passwords). The **only** place the automation may change anything. |
@@ -115,7 +123,7 @@ flowchart TD
     Q --> R
 
     subgraph S2 [Step 2 · replicate + classify · sonnet · per ticket]
-        R[Ticket, comments,<br/>screenshots, video] --> PB[project.md +<br/>matching playbooks]
+        R[Ticket, comments, screenshots,<br/>videos via the watch skill] --> PB[project.md +<br/>matching playbooks]
         PB --> REP[Reproduce on the TEST environment<br/>live environments: view-only, logged]
         REP --> RC[root_cause.md for bugs<br/>research.md before any<br/>be / needs-info verdict]
         RC --> CLS{Classify}
@@ -250,7 +258,7 @@ stateDiagram-v2
 |---|---|---|---|
 | `project_map.md` | 0 | opus | Scans one repo (with permission) and writes its profile, project file and surface maps. |
 | `fetch.md` | 1 | sonnet | Reads the tracker, reconciles the ledger, keeps only clean tickets, maps each to a repo, ranks, queues up to `batch_size` per repo. |
-| `replicate_classify.md` | 2 | sonnet | Reproduces on the test environment (live environments view-only), finds surface and cause, decides code / config / backend / needs-info, writes `handover.md`. |
+| `replicate_classify.md` | 2 | sonnet | Watches attached videos with the `watch` skill (frames + transcript), reproduces on the test environment (live environments view-only), finds surface and cause, decides code / config / backend / needs-info, writes `handover.md`. |
 | `fix.md` | 3 | opus | Fixes on a local branch: every variant and copy, new tests, existing tests and the test gate pass, one commit, lessons. |
 | `verify.md` | 4 | opus | Runs the branch the way `project.md` describes, before/after screenshots, must-keep-working matrix, readability review. |
 | `pr.md` | 5 | sonnet | Pushes, opens a **draft** PR in a fixed format, groups tickets that share files, tracker line, Slack DMs. |
@@ -264,6 +272,7 @@ stateDiagram-v2
 | `root_cause.md` | For bugs: the live-environment step log, the breaking point (file:line), why it broke now (git history → PR), hypotheses, a must-keep-working matrix, the fix boundary and the lock test. |
 | `live-view-only.md` | Default whitelist of view-only clicks on any live environment. |
 | `slack_dm.md` | Who gets a DM, when, templates, one per ticket. |
+| `watch` (plugin, not in this repo) | Turns a ticket's video into timestamped frames + transcript. Step 2 runs only its `watch.py` script (allowed by path), with your `WATCH_ENGINE`, into `evidence/<id>/video` (deleted with the ticket's evidence). Not set up: step 2 notes a BLOCKER and falls back to the browser. |
 
 ### Playbooks (`skills/playbooks/`): taught, local only
 

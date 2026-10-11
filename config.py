@@ -34,7 +34,15 @@ def settings():
         if os.environ.get(k) and not isinstance(s[k], (dict, list)):
             s[k] = os.environ[k]
     s["AUTOMATION_DIR"] = str(HERE)
+    s["WATCH_SKILL_DIR"] = s.get("WATCH_SKILL_DIR") or find_watch_skill()
+    s["WATCH_ENGINE"] = s.get("WATCH_ENGINE") or "local"
     return s
+
+
+def find_watch_skill():
+    """The `watch` video skill (Claude Code plugin watch@claude-video): newest installed copy, or "" if it is not installed."""
+    hits = sorted((Path.home() / ".claude" / "plugins").glob("cache/*/watch/*/skills/watch/scripts/watch.py"))
+    return str(hits[-1].parent.parent) if hits else ""
 
 
 def render(text, s=None):
@@ -189,6 +197,13 @@ def check():
         leftovers |= {k for k in PLACEHOLDER.findall(f.read_text()) if k not in s}
     if leftovers:
         problems.append("placeholders with no setting: " + ", ".join(sorted(leftovers)))
+    watch = s.get("WATCH_SKILL_DIR", "")
+    if not watch:
+        problems.append("`watch` video skill not installed: in Claude Code run  /plugin marketplace add bradautomates/claude-video  then "
+                        "/plugin install watch@claude-video, then /watch once to finish its setup (or set WATCH_SKILL_DIR)")
+    elif subprocess.run([sys.executable, str(Path(watch) / "scripts" / "setup.py"), "--check"], capture_output=True).returncode != 0:
+        problems.append("`watch` skill is installed but not set up: run /watch once in an interactive Claude Code session "
+                        "(engine local is enough; ffmpeg + yt-dlp are needed)")
     for tool, why in (("claude", "install Claude Code"), ("gh", "needed for draft PRs"), ("git", "")):
         if not shutil.which(tool):
             problems.append(f"`{tool}` not found on PATH" + (f" ({why})" if why else ""))
