@@ -1,0 +1,48 @@
+{
+  "_how_to": "Copy to settings.json (git-ignored) and replace every CHANGE_ME. Flat keys are used in files as {{KEY}} and can be overridden by an env var of the same name. Check with: python3 config.py check",
+
+  "OWNER_NAME": "CHANGE_ME",
+  "OWNER_EMAIL": "CHANGE_ME",
+
+  "CLICKUP_TEAM_ID": "CHANGE_ME",
+  "CLICKUP_LIST_ID": "CHANGE_ME",
+  "CLICKUP_STATUS": "CHANGE_ME",
+  "CLICKUP_ASSIGNEE": "CHANGE_ME",
+  "_DEVELOPER_NAMES": "Optional, comma-separated: other developers whose ticket comment means the ticket is already taken.",
+  "DEVELOPER_NAMES": "",
+
+  "GITHUB_OWNER": "CHANGE_ME",
+
+  "SLACK_DM_CHANNEL": "CHANGE_ME",
+  "_REVIEWER": "Optional: who gets a review DM when a change touches a repo's review_files.",
+  "REVIEWER_NAME": "",
+  "REVIEWER_SLACK_USER": "",
+  "REVIEWER_SLACK_CHANNEL": "",
+
+  "NOTES_FOLDER": "Ticket Automation",
+
+  "_SCAN_PERMISSION": "ask = ask in the terminal before step 0 scans a repo (no terminal = no scan) | always | never",
+  "SCAN_PERMISSION": "ask",
+
+  "repos": {
+    "my-app": {
+      "enabled": true,
+      "path": "/absolute/path/to/my-app",
+      "_base_branch": "Optional. Default: what step 0 finds (origin/HEAD), else automation.json defaults.base_branch.",
+      "ticket_match": {
+        "title_prefixes": ["My App"],
+        "tags": ["my-app"],
+        "exclude_title_prefixes": []
+      },
+      "_focus_keywords": "Optional: words in a ticket title/tags that put it in the 'focus' ranking tiers (e.g. the screens customers complain about most).",
+      "focus_keywords": [],
+      "test_environment": {
+        "url": "CHANGE_ME",
+        "host": "CHANGE_ME",
+        "notes": "How to sign in to the test environment, test accounts, storefront/basic-auth password, anything step 2/4 needs. The ONLY place the automation may change anything."
+      },
+      "_review_files": "Optional: paths/globs whose change triggers one review DM to REVIEWER_* after the draft PR.",
+      "review_files": []
+    }
+  }
+}

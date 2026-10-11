@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ticket Pipeline</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1c2230;--mute:#667085;--line:#dde1e8;--acc:#1f5fbf;--accbg:#e8f0fc;--ok:#1b7f4b;--okbg:#e7f6ee;--warn:#9a5b00;--warnbg:#fff4e0;--bad:#c62828;--badbg:#fdecec;--off:#c3c8d2}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#171b23;--ink:#e6e9ef;--mute:#9aa3b2;--line:#2a303b;--acc:#7aa7ff;--accbg:#1b2a45;--ok:#5fd39a;--okbg:#14301f;--warn:#f0b95a;--warnbg:#33260f;--bad:#ff7b7b;--badbg:#3a1717;--off:#3a414d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;padding:20px 16px 40px}
+.wrap{max-width:1200px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+h1{font-size:20px;margin:0}
+.run{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--mute)}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.p-run{background:var(--okbg);color:var(--ok)}.p-idle{background:var(--line);color:var(--mute)}
+.p-bad{background:var(--badbg);color:var(--bad)}.p-warn{background:var(--warnbg);color:var(--warn)}.p-ok{background:var(--okbg);color:var(--ok)}.p-acc{background:var(--accbg);color:var(--acc)}
+button{font:inherit;font-size:12px;font-weight:600;border:1px solid var(--bad);color:var(--bad);background:transparent;border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{background:var(--badbg)}
+button.ok{border-color:var(--ok);color:var(--ok)}button.ok:hover{background:var(--okbg)}button:disabled{opacity:.4;cursor:default}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.tab{border:1px solid var(--line);color:var(--ink);background:var(--card)}
+.tab.on{border-color:var(--acc);color:var(--acc);background:var(--accbg)}.tab:hover{background:var(--accbg)}
+input[type=search]{font:inherit;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);min-width:200px;flex:1;max-width:320px}
+.lanes{display:grid;grid-template-columns:repeat(8,1fr);font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em;text-align:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.card.live{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset}
+.top{display:flex;gap:10px;justify-content:space-between;align-items:flex-start}
+.title{font-weight:600}.title a{color:inherit;text-decoration:none}.title a:hover{text-decoration:underline}
+.meta{font-size:12px;color:var(--mute);margin-top:2px}
+.track{position:relative;display:grid;grid-template-columns:repeat(8,1fr);margin:12px 0 6px}
+.track:before{content:"";position:absolute;left:6.25%;right:6.25%;top:7px;height:2px;background:var(--line)}
+.st{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--mute);text-align:center}
+.dot{width:16px;height:16px;border-radius:50%;background:var(--card);border:2px solid var(--off);z-index:1}
+.st.done .dot{background:var(--ok);border-color:var(--ok)}
+.st.cur .dot{background:var(--acc);border-color:var(--acc)}
+.st.cur.live .dot{animation:pulse 1.2s infinite}
+.st.stop .dot{background:var(--bad);border-color:var(--bad)}
+.st.wait .dot{background:var(--warn);border-color:var(--warn)}
+.st.cur,.st.stop,.st.wait{color:var(--ink);font-weight:600}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 60%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
+.now{font-size:13px;background:var(--accbg);border-radius:6px;padding:6px 9px;margin-top:6px;word-break:break-word}
+.note{font-size:12.5px;color:var(--mute);margin-top:6px;word-break:break-word}
+details{margin-top:6px;font-size:12.5px}summary{cursor:pointer;color:var(--acc)}
+.h{border-left:2px solid var(--line);padding:3px 0 3px 9px;margin:4px 0;word-break:break-word}.h b{font-weight:600}
+.ev{font:11.5px/1.5 ui-monospace,Menlo,monospace;color:var(--mute);white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto}
+.empty{color:var(--mute);padding:20px;text-align:center}
+@media (max-width:700px){.lanes{display:none}.st span{display:none}.st.cur span,.st.stop span,.st.wait span{display:block}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ticket pipeline</h1>
+    <div class="run" id="run">loading…</div>
+  </header>
+  <div class="bar">
+    <button class="tab on" data-f="active">Active</button>
+    <button class="tab" data-f="you">Needs you</button>
+    <button class="tab" data-f="all">All</button>
+    <button class="tab" data-f="hidden" id="hiddenTab">Marked done</button>
+    <input type="search" id="q" placeholder="Search id, title, repo…">
+    <span class="meta" id="upd"></span>
+  </div>
+  <div class="lanes" id="lanes"></div>
+  <div id="list"></div>
+  <details data-k="events"><summary>Recent events</summary><div class="ev" id="events"></div></details>
+</div>
+<script>
+const LANES=["Queued","Replicate","Classified","Fix","Verify","PR draft","Preprod","Done"];
+const LANE={queued:0,replicating:1,replicated:1,"not-reproducible":1,classified:2,fixing:3,"fixed-local":3,verifying:4,verified:4,"pr-draft":5,"preprod-wait":6,"preprod-verified":6,done:7};
+const OFF={"needs-human":"bad","needs-info":"warn",failed:"bad",skipped:"idle","done-be":"ok","done-config":"ok","moved-out":"idle"};
+const IN_PROGRESS=new Set(["replicating","fixing","verifying"]);
+const WORKING=new Set(["queued","replicating","replicated","not-reproducible","classified","fixing","fixed-local","verifying","verified"]); // automation still owns these
+const YOU=new Set(["needs-human","needs-info","pr-draft","preprod-wait","failed"]);
+let filter="active",data=null,doneIds={};
+// "Mark as done" only hides the card in this browser (no server, ledger untouched); Undo in the "Marked done" tab
+try{doneIds=JSON.parse(localStorage.getItem("dash-done")||"{}")}catch(e){}
+const saveDone=()=>{try{localStorage.setItem("dash-done",JSON.stringify(doneIds))}catch(e){}};
+try{filter=localStorage.getItem("dash-filter")||filter}catch(e){}
+document.getElementById("lanes").innerHTML=LANES.map(l=>`<div>${l}</div>`).join("");
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ago=ts=>{if(!ts)return"";const d=(Date.now()-new Date(ts.replace(/([+-]\d\d)(\d\d)$/,"$1:$2")))/60000;return d<1?"just now":d<60?Math.round(d)+"m ago":d<1440?Math.round(d/60)+"h ago":Math.round(d/1440)+"d ago"};
+function stopLane(t){ // lane where the ticket left the pipeline
+  for(let i=t.history.length-1;i>=0;i--){const f=t.history[i].from;if(f in LANE)return LANE[f]}return 0}
+function track(t){
+  const off=OFF[t.stage],live=!!t.running;
+  const cur=off?stopLane(t):LANE[t.stage]??0;
+  return `<div class="track">${LANES.map((l,i)=>{
+    let c="",lab=l;
+    if(i<cur||(t.stage==="done"&&i<=cur))c="done";
+    if(i===cur&&t.stage!=="done"){
+      if(off){c=off==="bad"?"stop":off==="warn"?"wait":"done";lab=t.stage}
+      else{c="cur"+(live?" live":"");lab=t.stage}
+    }
+    return `<div class="st ${c}"><div class="dot"></div><span>${esc(lab)}</span></div>`}).join("")}</div>`}
+function pill(t){if(!t.running&&IN_PROGRESS.has(t.stage))return `<span class="pill p-warn" title="stage says in progress but no step process is running (run stopped or crashed)">${esc(t.stage)} · stalled</span>`;const o=OFF[t.stage];const cls=t.running?"p-run":o?"p-"+o:t.stage==="pr-draft"?"p-acc":"p-idle";return `<span class="pill ${cls}">${esc(t.running?t.running.step+" running":t.stage)}</span>`}
+function card(t){
+  const last=t.history[t.history.length-1]||{};
+  const canKill=t.running||IN_PROGRESS.has(t.stage);
+  return `<div class="card ${t.running?"live":""}">
+    <div class="top"><div><div class="title"><a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(t.title||t.id)}</a></div>
+      <div class="meta">${esc(t.id)} · ${esc(t.repo)}${t.branch?" · "+esc(t.branch):""}${t.pr_url?` · <a href="${esc(t.pr_url)}" target="_blank" rel="noopener">PR</a>`:""} · updated ${ago(t.updated)}</div></div>
+      <div style="display:flex;gap:8px;align-items:center">${pill(t)}${doneIds[t.id]?`<button class="ok" data-undo="${esc(t.id)}">Undo done</button>`:`<button class="ok" data-done="${esc(t.id)}">Mark as done</button>`}${canKill?`<button data-kill="${esc(t.id)}" title="Copies a kill command for Terminal">Copy kill cmd</button>`:""}</div></div>
+    ${track(t)}
+    ${t.running?`<div class="now"><b>Now:</b> ${esc(t.running.step)} step · running ${esc(t.running.etime)} · pid ${t.running.pid}${t.activity?`<br><b>Last action</b> (${ago(t.activity.ts)}): ${esc(t.activity.what)}`:""}</div>`:""}
+    ${last.note?`<div class="note"><b>${esc(last.from||"")} → ${esc(last.to)}</b> · ${esc(last.note.slice(0,260))}${last.note.length>260?"…":""}</div>`:""}
+    <details data-k="h-${esc(t.id)}"><summary>History (${t.history.length})</summary>${t.history.slice().reverse().map(h=>`<div class="h"><b>${esc(h.from||"—")} → ${esc(h.to)}</b> · ${ago(h.ts)}<br>${esc(h.note)}</div>`).join("")}</details>
+  </div>`}
+function render(){
+  if(!data)return;
+  const open=new Set([...document.querySelectorAll("details[open][data-k]")].map(d=>d.dataset.k));
+  const q=document.getElementById("q").value.toLowerCase();
+  let rows=data.tickets.filter(t=>{
+    if(q&&!(t.id+" "+t.title+" "+t.repo).toLowerCase().includes(q))return false;
+    if(filter==="hidden")return !!doneIds[t.id];
+    if(doneIds[t.id])return false;
+    if(filter==="you")return YOU.has(t.stage);
+    if(filter==="active")return !!t.running||WORKING.has(t.stage);
+    return true});
+  document.getElementById("list").innerHTML=rows.length?rows.map(card).join(""):`<div class="empty">No tickets here.</div>`;
+  const r=data.run;
+  document.getElementById("run").innerHTML=r&&r.alive?`<span class="pill p-run">run.py running</span><span>pid ${r.pid}</span><button id="stop" title="Copies a stop command for Terminal">Copy stop-run cmd</button>`:`<span class="pill p-idle">no run in progress</span>`;
+  document.getElementById("events").textContent=data.events.slice().reverse().join("\n");
+  document.querySelectorAll("details[data-k]").forEach(d=>{if(open.has(d.dataset.k))d.open=true});
+  document.getElementById("upd").textContent="data from "+ago(data.built)+" · build.py writes it";
+  document.getElementById("hiddenTab").textContent=`Marked done (${Object.keys(doneIds).length})`;
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.f===filter));
+}
+function load(){ // file:// pages can't fetch, so re-inject data.js (written by build.py)
+  const old=document.getElementById("data");if(old)old.remove();
+  const sc=document.createElement("script");sc.id="data";sc.src="data.js?"+Date.now();
+  sc.onload=()=>{const n=window.PIPELINE_DATA;if(data&&n.built===data.built)return;data=n;render()}; // same data -> no redraw, so reading is not disturbed
+  sc.onerror=()=>{document.getElementById("upd").textContent="data.js missing: run python3 dashboard/build.py"};
+  document.head.appendChild(sc)}
+function q(s){return "'"+String(s).replace(/'/g,"'\\''")+"'"}
+function killCmd(t){const L=`python3 ${q(data.auto_dir+"/ledger.py")}`;
+  return (t.running?`kill ${t.running.pid}; `:"")+`${L} set ${t.id} --stage needs-human --force --note 'killed manually from dashboard'`}
+function stopCmd(){const L=`python3 ${q(data.auto_dir+"/ledger.py")}`;
+  const pids=[data.run.pid,...data.tickets.filter(t=>t.running).map(t=>t.running.pid)];
+  return `kill ${pids.join(" ")}; sleep 1; ${L} recover --minutes 0`}
+async function copy(cmd,btn){try{await navigator.clipboard.writeText(cmd);const o=btn.textContent;btn.textContent="Copied, paste in Terminal";setTimeout(()=>btn.textContent=o,2500)}catch(_){prompt("Copy and run in Terminal:",cmd)}}
+document.addEventListener("click",e=>{
+  const k=e.target.closest("[data-kill]"),tab=e.target.closest(".tab");
+  const dn=e.target.closest("[data-done]"),un=e.target.closest("[data-undo]");
+  if(dn){doneIds[dn.dataset.done]=new Date().toISOString();saveDone();render();return}
+  if(un){delete doneIds[un.dataset.undo];saveDone();render();return}
+  if(tab){filter=tab.dataset.f;try{localStorage.setItem("dash-filter",filter)}catch(_){}render();return}
+  if(k){const t=data.tickets.find(x=>x.id===k.dataset.kill);if(t)copy(killCmd(t),k)}
+  if(e.target.id==="stop")copy(stopCmd(),e.target);
+});
+document.getElementById("q").addEventListener("input",render);
+load();setInterval(load,5000);
+</script>
+</body>
+</html>
